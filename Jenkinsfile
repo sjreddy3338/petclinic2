@@ -11,7 +11,7 @@ pipeline{
         // Where your Nexus is running
         NEXUS_URL = "ec2-13-234-110-65.ap-south-1.compute.amazonaws.com:8081"
         // Repository where we will upload the artifact
-        NEXUS_REPOSITORY = "jenkins_pipeline"
+        NEXUS_REPOSITORY = "pipeline-nexus"
         // Jenkins credential id to authenticate to Nexus OSS
         NEXUS_CREDENTIAL_ID = "nexuscred"
     }
@@ -25,8 +25,15 @@ pipeline{
             steps{
                 sh "mvn clean package"
             }
-        }
-        
+        }  
+		stage('deploy') {
+             steps{
+                 withCredentials([usernameColonPassword(credentialsId: 'Tomcat_credentails', variable: 'tom_crede')]) {
+                 sh "curl -v -u ${tom_crede} -T /var/lib/jenkins/workspace/jenkins_file/target/petclinic.war 'http://ec2-13-127-173-187.ap-south-1.compute.amazonaws.com:8080/manager/html/text/deploy?path=/pipeline_jenkins&update=true'"
+               
+             }
+             }
+         }
         stage("publish to nexus") {
             steps {
                 script {
