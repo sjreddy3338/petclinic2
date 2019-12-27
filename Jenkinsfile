@@ -29,7 +29,7 @@ pipeline{
 		stage('deploy') {
              steps{
                  withCredentials([usernameColonPassword(credentialsId: 'Tomcat_credentails', variable: 'tom_crede')]) {
-                 sh "curl -v -u ${tom_crede} -T /var/lib/jenkins/workspace/jenkins_file/target/petclinic.war 'http://ec2-13-127-173-187.ap-south-1.compute.amazonaws.com:8080/manager/html/text/deploy?path=/pipeline_jenkins&update=true'"
+                 sh "curl -v -u ${tom_crede} -T /var/lib/jenkins/workspace/jenkins_file/target/petclinic.war 'http://ec2-13-127-173-187.ap-south-1.compute.amazonaws.com:8080/manager/html/text/deploy?path=/pipeline_jenkins'"
                
              }
              }
