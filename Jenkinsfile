@@ -1,35 +1,74 @@
-node {
-	def mavenHome
-        
-        stage('Code Checkout') { 
-		// Get code from a repository and Git has to be installed in the system; git must be configured in the Global Tool Configuration
-		git 'https://github.com/mitesh51/spring-petclinic.git'
-           
-		// Get the Maven tool configured in Global Tool Configuration 
-		// 'apache-maven-3.5.3' Maven tool must be configured in the global configuration.
-		mavenHome = tool 'apache-maven-3.5.3'
+pipeline{
+    agent any
+    tools {
+        maven "maven"
+    }
+    environment {
+        // This can be nexus3 or nexus2
+        NEXUS_VERSION = "nexus3"
+        // This can be http or https
+        NEXUS_PROTOCOL = "http"
+        // Where your Nexus is running
+        NEXUS_URL = "ec2-13-234-110-65.ap-south-1.compute.amazonaws.com:8081"
+        // Repository where we will upload the artifact
+        NEXUS_REPOSITORY = "pipeline-nexus"
+        // Jenkins credential id to authenticate to Nexus OSS
+        NEXUS_CREDENTIAL_ID = "nexuscred"
+    }
+    stages{
+        stage('gitscm') {
+            steps{
+                git credentialsId: 'git_credential', url: 'https://github.com/sjreddy3338/petclinic2.git'
+            }
         }
-        stage('Code Analysis') {
-                // Configure SonarQube Scanner in Manage Jenkins -> Global Tool Configuration
-                def scannerHome = tool 'SonarQube Scanner';
-
-                // Sonarqube 7 must be configured in the Jenkins Manage Jenkins -> Configure System -> Add SonarQube server 
-                withSonarQubeEnv('Sonar7.1') {
-                        bat "${scannerHome}/bin/sonar-scanner -Dsonar.host.url=http://localhost:9000 -Dsonar.login=cb4e2ac86c60200796a7cf866c2a60955a505db2 -Dsonar.projectVersion=1.0 -Dsonar.projectKey=PetClinic_Key -Dsonar.sources=src -Dsonar.java.binaries=."
+        stage('build'){
+            steps{
+                sh "mvn clean package"
+            }
+        }
+        
+        stage("publish to nexus") {
+            steps {
+                script {
+                    // Read POM xml file using 'readMavenPom' step , this step 'readMavenPom' is included in: https://plugins.jenkins.io/pipeline-utility-steps
+                    pom = readMavenPom file: "pom.xml";
+                    // Find built artifact under target folder
+                    filesByGlob = findFiles(glob: "target/*.${pom.packaging}");
+                    // Print some info from the artifact found
+                    echo "${filesByGlob[0].name} ${filesByGlob[0].path} ${filesByGlob[0].directory} ${filesByGlob[0].length} ${filesByGlob[0].lastModified}"
+                    // Extract the path from the File found
+                    artifactPath = filesByGlob[0].path;
+                    // Assign to a boolean response verifying If the artifact name exists
+                    artifactExists = fileExists artifactPath;
+                    if(artifactExists) {
+                        echo "*** File: ${artifactPath}, group: ${pom.groupId}, packaging: ${pom.packaging}, version ${pom.version}";
+                        nexusArtifactUploader(
+                            nexusVersion: NEXUS_VERSION,
+                            protocol: NEXUS_PROTOCOL,
+                            nexusUrl: NEXUS_URL,
+                            groupId: pom.groupId,
+                            version: '${BUILD_NUMBER}',
+                            repository: NEXUS_REPOSITORY,
+                            credentialsId: NEXUS_CREDENTIAL_ID,
+                            artifacts: [
+                                // Artifact generated such as .jar, .ear and .war files.
+                                [artifactId: pom.artifactId,
+                                classifier: '',
+                                file: artifactPath,
+                                type: pom.packaging],
+                                // Lets upload the pom.xml file for additional information for Transitive dependencies
+                                [artifactId: pom.artifactId,
+                                classifier: '',
+                                file: "pom.xml",
+                                type: "pom"]
+                            ]
+                        );
+                    } else {
+                        error "*** File: ${artifactPath}, could not be found";
+                    }
                 }
-        } 
-	stage('Build') {
-                // Execute shell script if OS flavor is Linux
-                if (isUnix()) {
-                        sh "'${mavenHome}/bin/mvn' -Dmaven.test.failure.ignore clean package"
-                        // Publish JUnit Report
-                        junit '**/target/surefire-reports/TEST-*.xml'
-                } 
-                else {
-                        // Execute Batch script if OS flavor is Windows		
-                        bat(/"${mavenHome}\bin\mvn" clean package/)
-                        // Publish JUnit Report
-                        junit '**/target/surefire-reports/TEST-*.xml'
-                }
-	}
+            }
+        }
+        
+    }
 }
