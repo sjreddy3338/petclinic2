@@ -1,7 +1,10 @@
-pipeline{
-    agent any
+pipeline {
+    agent {
+        label "any"
+    }
     tools {
-        maven "maven"
+        // Note: this should match with the tool name configured in your jenkins instance (JENKINS_URL/configureTools/)
+        maven "Maven"
     }
     environment {
         // This can be nexus3 or nexus2
@@ -9,31 +12,32 @@ pipeline{
         // This can be http or https
         NEXUS_PROTOCOL = "http"
         // Where your Nexus is running
-        NEXUS_URL = "ec2-13-234-110-65.ap-south-1.compute.amazonaws.com:8081"
+        NEXUS_URL = "http://ec2-13-235-31-30.ap-south-1.compute.amazonaws.com:8081/"
         // Repository where we will upload the artifact
-        NEXUS_REPOSITORY = "pipeline-nexus"
+        NEXUS_REPOSITORY = "spring3"
         // Jenkins credential id to authenticate to Nexus OSS
-        NEXUS_CREDENTIAL_ID = "nexuscred"
+        NEXUS_CREDENTIAL_ID = "nexus_credentials"
     }
-    stages{
-        stage('gitscm') {
-            steps{
-                git credentialsId: 'git_credential', url: 'https://github.com/sjreddy3338/petclinic2.git'
+    stages {
+        stage("clone code") {
+            steps {
+                script {
+                    // Let's clone the source
+                    https://github.com/sjreddy3338/petclinic2.git
+                }
             }
         }
-        stage('build'){
-            steps{
-                sh "mvn clean package"
+        stage("mvn build") {
+            steps {
+                script {
+                    // If you are using Windows then you should use "bat" step
+                    // Since unit testing is out of the scope we skip them
+                    //bat(/${MAVEN_HOME}\bin\mvn -Dmaven.test.failure.ignore clean package/)
+                     sh "mvn package"
+      
+        }
             }
-        }  
-		stage('deploy') {
-             steps{
-                 withCredentials([usernameColonPassword(credentialsId: 'Tomcat_credentails', variable: 'tom_crede')]) {
-                 sh "curl -v -u ${tom_crede} -T /var/lib/jenkins/workspace/jenkins_file/target/petclinic.war 'http://ec2-13-127-173-187.ap-south-1.compute.amazonaws.com:8080/manager/html/text/deploy?path=/pipeline_jenkins'"
-               
-             }
-             }
-         }
+        }
         stage("publish to nexus") {
             steps {
                 script {
@@ -76,6 +80,3 @@ pipeline{
                 }
             }
         }
-        
-    }
-}
