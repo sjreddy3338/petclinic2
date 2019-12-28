@@ -12,9 +12,9 @@ pipeline {
         // This can be http or https
         NEXUS_PROTOCOL = "http"
         // Where your Nexus is running
-        NEXUS_URL = "http://ec2-13-235-31-30.ap-south-1.compute.amazonaws.com:8081/"
+        NEXUS_URL = "ec2-13-235-31-30.ap-south-1.compute.amazonaws.com:8081"
         // Repository where we will upload the artifact
-        NEXUS_REPOSITORY = "spring3"
+        NEXUS_REPOSITORY = "jenkinsfile2"
         // Jenkins credential id to authenticate to Nexus OSS
         NEXUS_CREDENTIAL_ID = "nexus_credentials"
     }
@@ -23,7 +23,7 @@ pipeline {
             steps {
                 script {
                     // Let's clone the source
-                    https://github.com/sjreddy3338/petclinic2.git
+                    git 'https://github.com/sjreddy3338/petclinic2.git';
                 }
             }
         }
@@ -33,8 +33,7 @@ pipeline {
                     // If you are using Windows then you should use "bat" step
                     // Since unit testing is out of the scope we skip them
                     //bat(/${MAVEN_HOME}\bin\mvn -Dmaven.test.failure.ignore clean package/)
-                     sh "mvn package"
-      
+                           
         }
             }
         }
@@ -80,3 +79,5 @@ pipeline {
                 }
             }
         }
+    }
+}
